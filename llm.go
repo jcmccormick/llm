@@ -86,7 +86,7 @@ func getCompletion(prompt string) {
 	// 	_ = completion
 }
 
-func generateCompletion(model string, prompt string, useJson bool) string {
+func GenerateCompletion(model string, prompt string, useJson bool) string {
 	// println("getting completion using " + model + " with prompt " + prompt)
 	data := LLMRequest{
 		Messages: []Message{
