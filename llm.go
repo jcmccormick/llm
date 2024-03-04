@@ -147,7 +147,7 @@ func GenerateCompletion(model string, prompt string, useJson bool) string {
 func getModeration(message string) string {
 	var moderationEvent BasicOutput
 
-	modEvt := generateCompletion(modModel, message, true)
+	modEvt := GenerateCompletion(modModel, message, true)
 
 	if err := json.Unmarshal([]byte(modEvt), &moderationEvent); err != nil {
 		log.Fatal(err)
