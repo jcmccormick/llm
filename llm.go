@@ -1,4 +1,4 @@
-package jcmllm
+package llm
 
 import (
 	"bytes"
