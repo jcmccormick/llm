@@ -49,26 +49,39 @@ type Message struct {
 	Content string `json:"content"`
 }
 
-type ChatRequest struct {
-	Message  Message `json:"message"`
-	Response string  `json:"response"`
-	Context  []int   `json:"context"`
-}
-
 type LLMOpts struct {
 	NumCtx     int      `json:"num_ctx"`
 	NumPredict int      `json:"num_predict"`
 	Stop       []string `json:"stop"`
 }
 
-type LLMRequest struct {
+type GenerateRequest struct {
+	Prompt string `json:"prompt"`
+	Format string `json:"format"`
+	Model  string `json:"model"`
+	Stream bool   `json:"stream"`
+}
+
+type LLMChatRequest struct {
 	Messages []Message `json:"messages"`
-	// Prompt   string    `json:"prompt"`
+	Format   string    `json:"format"`
+	Model    string    `json:"model"`
+	Stream   bool      `json:"stream"`
+	// Options   LLMOpts   `json:"options"`
+	KeepAlive string `json:"keep_alive"`
+}
+type LLMGenerateRequest struct {
+	Prompt string `json:"prompt"`
 	Format string `json:"format"`
 	Model  string `json:"model"`
 	Stream bool   `json:"stream"`
 	// Options   LLMOpts   `json:"options"`
-	// KeepAlive string    `json:"keep_alive"`
+	KeepAlive string `json:"keep_alive"`
+}
+type LLMResponse struct {
+	Message  Message `json:"message"`
+	Response string  `json:"response"`
+	Context  []int   `json:"context"`
 }
 
 func getCompletion(prompt string) {
@@ -87,14 +100,60 @@ func getCompletion(prompt string) {
 }
 
 func GenerateCompletion(model string, prompt string, useJson bool) string {
-	// println("getting completion using " + model + " with prompt " + prompt)
-	data := LLMRequest{
+	data := LLMGenerateRequest{
+		Prompt:    prompt,
+		Model:     model,
+		Stream:    false,
+		KeepAlive: "0",
+		// Options: LLMOpts{
+		// 	Stop: []string{"}"},
+		// },
+	}
+
+	if useJson == true {
+		data.Format = "json"
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+
+	req, err := http.NewRequest("POST", "http://localhost:11434/api/generate", bytes.NewBuffer(jsonData))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var llmResponse LLMResponse
+
+	if err := json.Unmarshal(body, &llmResponse); err != nil {
+		log.Fatal(err)
+	}
+
+	return llmResponse.Response
+}
+
+func GenerateChat(model string, prompt string, useJson bool) string {
+	data := LLMChatRequest{
 		Messages: []Message{
 			{Role: "user", Content: prompt},
 		},
-		Model:  model,
-		Stream: false,
-		// KeepAlive: "0",
+		Model:     model,
+		Stream:    false,
+		KeepAlive: "0",
 		// Options: LLMOpts{
 		// 	Stop: []string{"}"},
 		// },
@@ -127,21 +186,13 @@ func GenerateCompletion(model string, prompt string, useJson bool) string {
 		log.Fatal(err)
 	}
 
-	// println("THE BODY:" + string(body))
+	var llmResponse LLMResponse
 
-	var chatRequest ChatRequest
-
-	if err := json.Unmarshal(body, &chatRequest); err != nil {
+	if err := json.Unmarshal(body, &llmResponse); err != nil {
 		log.Fatal(err)
 	}
 
-	var printJson bytes.Buffer
-
-	json.Indent(&printJson, body, "", "\t")
-
-	// println("got a response" + string(printJson.Bytes()))
-
-	return chatRequest.Message.Content
+	return llmResponse.Message.Content
 }
 
 func getModeration(message string) string {
